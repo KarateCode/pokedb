@@ -1,5 +1,7 @@
-# Pokemon card display function
-# Usage: source pokemon-card.nu; pokeCard 25
+# Pokemon card display functions
+# Usage: source pokemon-card.nu
+#        pokeCard 25      # Display card for Pokemon with id 25
+#        pokePick         # Browse all Pokemon with fzf, then display card
 
 def pokeCard [id: int] {
     let db = "pokemon.db"
@@ -116,4 +118,32 @@ def pokeCard [id: int] {
     print ""
     print $"($cyan)     Total:($reset) ($bold)($total)($reset)"
     print $"($yellow)═══════════════════════════════════════($reset)"
+}
+
+# Browse Pokemon with fzf and display selected card
+def pokePick [] {
+    let db = "pokemon.db"
+
+    # Get all Pokemon, format for fzf display
+    let selection = (
+        open $db
+        | get pokemon
+        | each { |p|
+            let form_text = if $p.form != null { $" \(($p.form)\)" } else { "" }
+            let pokedex_padded = ($p.pokedexId | fill -a right -c ' ' -w 4)
+            let gen_text = $"Gen ($p.generation)"
+            # Format: "id | #pokedexId | Name (Form) | Gen X"
+            $"($p.id)\t#($pokedex_padded)\t($p.name)($form_text)\t($gen_text)"
+        }
+        | str join "\n"
+        | fzf --header="Pick a Pokemon" --ansi --delimiter="\t" --with-nth=2..
+    )
+
+    if ($selection | is-empty) {
+        return
+    }
+
+    # Extract the id (first field before tab)
+    let id = ($selection | split row "\t" | first | into int)
+    pokeCard $id
 }
