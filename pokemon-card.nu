@@ -3,7 +3,7 @@
 #        pokeCard 25      # Display card for Pokemon with id 25
 #        pokePick         # Browse all Pokemon with fzf, then display card
 
-def pokeCard [id: int] {
+def pokeCard [id: int, --no-images] {
     let db = "pokemon.db"
     let images_dir = "../pokemon.json/images"
 
@@ -20,10 +20,12 @@ def pokeCard [id: int] {
     let image_path = $"($images_dir)/($padded).png"
 
     # Display the image if it exists
-    if ($image_path | path exists) {
-        chafa --size=40x20 $image_path
-    } else {
-        print $"(ansi yellow)No image found for pokedex #($pokemon.pokedexId)(ansi reset)"
+    if not $no_images {
+        if ($image_path | path exists) {
+            chafa --size=40x20 $image_path
+        } else {
+            print $"(ansi yellow)No image found for pokedex #($pokemon.pokedexId)(ansi reset)"
+        }
     }
 
     # Colors
