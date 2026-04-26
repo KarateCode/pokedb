@@ -2,6 +2,7 @@
 
 # Pokemon SQLite Database Import Script (from CSV)
 # Usage: nu importCsv.nu
+# Note: Run importHisui.nu after this script to mark Hisui region Pokemon
 
 let db = "pokemon.db"
 let csv_path = "../pokemonData/Pokemon.csv"

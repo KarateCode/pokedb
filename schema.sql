@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS pokemon (
     spAttack INTEGER NOT NULL,
     spDefense INTEGER NOT NULL,
     speed INTEGER NOT NULL,
-    generation INTEGER NOT NULL
+    generation INTEGER NOT NULL,
+    isHisui INTEGER DEFAULT 0         -- 1 if Pokemon is in Hisui region (Legends Arceus)
 );
 
 CREATE INDEX IF NOT EXISTS idx_pokemon_pokedexId ON pokemon(pokedexId);
