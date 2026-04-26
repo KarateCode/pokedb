@@ -129,6 +129,10 @@ def pokeCard [id: int, --no-images] {
         {name: "Speed", value: $pokemon.speed}
     ]
 
+    # Target width for left column (visible characters)
+    let left_width = 42
+    let pad = ("" | fill -c " " -w $left_width)
+
     let stat_lines = ($stats | each { |stat|
         let name = ($stat.name | fill -a left -w 8)
         let value = ($stat.value | into string | fill -a right -w 3)
@@ -148,34 +152,53 @@ def pokeCard [id: int, --no-images] {
         let filled_bar = (1..$filled | each { "█" } | str join)
         let empty_bar = (1..$empty | each { "░" } | str join)
 
-        $"($cyan)  ($name):($reset) ($value) ($bar_color)($filled_bar)($dimmed)($empty_bar)($reset)"
+        # Stat line visible: "  HP      : 100 " (16) + bar (20) = 36 chars, need 6 more
+        $"($cyan)  ($name):($reset) ($value) ($bar_color)($filled_bar)($dimmed)($empty_bar)($reset)      "
     })
 
     let total = $pokemon.hp + $pokemon.attack + $pokemon.defense + $pokemon.spAttack + $pokemon.spDefense + $pokemon.speed
 
-    # Build left column lines
+    # Build left column lines - each padded to left_width (42 visible chars)
     let form_text = if $pokemon.form != null { $" \(($pokemon.form)\)" } else { "" }
 
+    # Type line: "  Type:       " (14) + types (variable) - pad the types portion
+    let type_label = $"($cyan)  Type:($reset)       "
+    let type_content = $type_display
+    let types_visible_len = ($types | each { |t| $t | str length } | math sum) + (if ($types | length) > 1 { 3 } else { 0 })
+    let type_padding = ("" | fill -c " " -w (28 - $types_visible_len))
+    let type_line = $"($type_label)($type_content)($type_padding)"
+
+    # Generation line: "  Generation: X" - pad to 42
+    let gen_str = ($pokemon.generation | into string)
+    let gen_padding = ("" | fill -c " " -w (28 - ($gen_str | str length)))
+    let gen_line = $"($cyan)  Generation:($reset) ($white)($gen_str)($reset)($gen_padding)"
+
+    # Base Stats header: "  --- Base Stats ---" (22 visual) - pad to 42
+    let stats_header = $"($bold)($cyan)  --- Base Stats ---($reset)                      "
+
+    # Total line: "     Total: XXX" (12 + len) - pad to 42, so need (30 - len) spaces
+    let total_str = ($total | into string)
+    let total_padding = ("" | fill -c " " -w (30 - ($total_str | str length)))
+    let total_line = $"($cyan)     Total:($reset) ($bold)($total)($reset)($total_padding)"
+
     let left_col = [
-        $"($cyan)  Type:($reset)       ($type_display)"
-        $"($cyan)  Generation:($reset) ($white)($pokemon.generation)($reset)"
-        ""
-        $"($bold)($cyan)  ─── Base Stats ───($reset)"
-    ] | append $stat_lines | append ["", $"($cyan)     Total:($reset) ($bold)($total)($reset)"]
+        $type_line
+        $gen_line
+        $pad
+        $stats_header
+    ] | append $stat_lines | append [$pad, $total_line]
 
     # Build right column lines
     let right_col = [$"($bold)($cyan)Weak To:($reset)"] | append $weakness_lines
 
-    # Calculate padding width for left column (without ansi codes)
-    let left_width = 42
-
-    # Pad right column to match left column length
+    # Pad columns to same number of lines
     let left_len = ($left_col | length)
     let right_len = ($right_col | length)
     let max_lines = if $left_len > $right_len { $left_len } else { $right_len }
     let left_extra = $max_lines - $left_len
     let right_extra = $max_lines - $right_len
-    let left_padded = if $left_extra > 0 { $left_col | append (1..$left_extra | each { "" }) } else { $left_col }
+    let empty_left_line = ("" | fill -c " " -w $left_width)
+    let left_padded = if $left_extra > 0 { $left_col | append (1..$left_extra | each { $empty_left_line }) } else { $left_col }
     let right_padded = if $right_extra > 0 { $right_col | append (1..$right_extra | each { "" }) } else { $right_col }
 
     # Header
@@ -188,14 +211,7 @@ def pokeCard [id: int, --no-images] {
     for i in 0..<$max_lines {
         let left_line = ($left_padded | get $i)
         let right_line = ($right_padded | get $i)
-
-        # Pad left line to fixed width (accounting for visible chars only is tricky with ansi)
-        # We'll use a simpler approach: pad with spaces to a fixed column
-        let left_stripped_len = ($left_line | ansi strip | str length)
-        let pad_count = $left_width - $left_stripped_len
-        let padding = if $pad_count > 0 { "" | fill -c " " -w $pad_count } else { "" }
-
-        print $"($left_line)($padding)($dimmed)│($reset)  ($right_line)"
+        print $"($left_line)($dimmed)│($reset)  ($right_line)"
     }
 
     print $"($bold)($yellow)═══════════════════════════════════════════════════════════════($reset)"
