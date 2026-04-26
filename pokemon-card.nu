@@ -36,7 +36,7 @@ def get-weaknesses [defender_types: list, all_types: table] {
 
 def pokeCard [id: int, --no-images] {
     let db = "pokemon.db"
-    let images_dir = "../pokemon.json/images"
+    let images_dir = "data/images"
 
     # Fetch Pokemon from database
     let pokemon = (open $db | get pokemon | where id == $id | first)

@@ -4,7 +4,7 @@
 # Usage: nu importTypes.nu
 
 let db = "pokemon.db"
-let types_path = "../pokemon-type-chart/types.json"
+let types_path = "data/types.json"
 
 print "Dropping existing types table if present..."
 sqlite3 $db "DROP TABLE IF EXISTS types"

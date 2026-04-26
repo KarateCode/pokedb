@@ -5,7 +5,7 @@
 # Note: Run importHisui.nu after this script to mark Hisui region Pokemon
 
 let db = "pokemon.db"
-let csv_path = "../pokemonData/Pokemon.csv"
+let csv_path = "data/Pokemon.csv"
 
 # Remove existing database and create fresh with schema
 rm -f $db

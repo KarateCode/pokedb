@@ -4,8 +4,8 @@
 # Usage: nu import.nu
 
 let db = "pokemon.db"
-let pokedex_path = "../pokemon.json/pokedex.json"
-let moves_path = "../pokemon.json/moves.json"
+let pokedex_path = "data/pokedex.json"
+let moves_path = "data/moves.json"
 
 # Remove existing database to start fresh
 rm -f $db
