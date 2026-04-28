@@ -244,3 +244,222 @@ def pokePick [] {
     let id = ($selection | split row "\t" | first | into int)
     pokeCard $id
 }
+
+# Version group lookup table
+def get-version-groups [] {
+    {
+        "1": "Red/Blue",
+        "2": "Yellow",
+        "3": "Gold/Silver",
+        "4": "Crystal",
+        "5": "Ruby/Sapphire",
+        "6": "Emerald",
+        "7": "FireRed/LeafGreen",
+        "8": "Diamond/Pearl",
+        "9": "Platinum",
+        "10": "HeartGold/SoulSilver",
+        "11": "Black/White",
+        "12": "Colosseum",
+        "13": "XD",
+        "14": "Black 2/White 2",
+        "15": "X/Y",
+        "16": "Omega Ruby/Alpha Sapphire",
+        "17": "Sun/Moon",
+        "18": "Ultra Sun/Ultra Moon",
+        "19": "Let's Go Pikachu/Eevee",
+        "20": "Sword/Shield"
+    }
+}
+
+# Display all moves a Pokemon can learn
+# Usage: pokeMoves 25              # Latest version
+#        pokeMoves 25 --version 15 # X/Y version
+def pokeMoves [id: int, --version (-v): int] {
+    let db = "pokemon.db"
+    let version_names = (get-version-groups)
+
+    # Fetch Pokemon from database
+    let pokemon = (open $db | get pokemon | where id == $id | first)
+
+    if ($pokemon | is-empty) {
+        print $"(ansi red)Pokemon with id ($id) not found!(ansi reset)"
+        return
+    }
+
+    # Determine version group to use
+    let available_versions = (sqlite3 $db $"SELECT DISTINCT version_group_id FROM pokemon_moves WHERE pokemon_id = ($id) ORDER BY version_group_id DESC" | lines | each { $in | into int })
+
+    if ($available_versions | is-empty) {
+        print $"(ansi red)No move data found for ($pokemon.name)!(ansi reset)"
+        return
+    }
+
+    let version_group = if ($version | is-empty) {
+        $available_versions | first  # Latest
+    } else {
+        if ($version in $available_versions) {
+            $version
+        } else {
+            print $"(ansi red)Version ($version) not available for ($pokemon.name)(ansi reset)"
+            let version_list = ($available_versions | each { |v|
+                let name = ($version_names | get -o ($v | into string) | default "Unknown")
+                $"($v) \(($name))"
+            } | str join ', ')
+            print $"Available versions: ($version_list)"
+            return
+        }
+    }
+
+    let version_name = ($version_names | get -o ($version_group | into string) | default "Unknown")
+
+    # Colors
+    let cyan = (ansi cyan)
+    let yellow = (ansi yellow)
+    let green = (ansi green)
+    let red = (ansi red)
+    let white = (ansi white)
+    let magenta = (ansi magenta)
+    let blue = (ansi blue)
+    let reset = (ansi reset)
+    let bold = (ansi attr_bold)
+    let dimmed = (ansi white_dimmed)
+
+    # Type color map
+    let type_colors = {
+        normal: (ansi white),
+        fire: (ansi red),
+        water: (ansi blue),
+        electric: (ansi yellow),
+        grass: (ansi green),
+        ice: (ansi cyan),
+        fighting: (ansi red_bold),
+        poison: (ansi magenta),
+        ground: (ansi yellow),
+        flying: (ansi cyan),
+        psychic: (ansi magenta),
+        bug: (ansi green),
+        rock: (ansi yellow),
+        ghost: (ansi magenta),
+        dragon: (ansi magenta_bold),
+        dark: (ansi white_dimmed),
+        steel: (ansi white),
+        fairy: (ansi magenta)
+    }
+
+    # Fetch all moves for this Pokemon and version
+    let query = $"
+        SELECT
+            pm.method,
+            pm.level,
+            m.name,
+            m.type,
+            m.power,
+            m.accuracy,
+            m.pp,
+            m.damage_class
+        FROM pokemon_moves pm
+        JOIN moves m ON pm.move_id = m.id
+        WHERE pm.pokemon_id = ($id)
+          AND pm.version_group_id = ($version_group)
+        ORDER BY pm.method,
+                 CASE WHEN pm.level IS NULL THEN 999 ELSE CAST\(pm.level AS INTEGER\) END,
+                 m.name
+    "
+    let all_moves = (sqlite3 -json $db $query | from json)
+
+    # Group by method
+    let methods_order = ["level-up", "machine", "egg", "tutor"]
+    let method_labels = {
+        "level-up": "Level-Up",
+        "machine": "TM / Machine",
+        "egg": "Egg",
+        "tutor": "Tutor"
+    }
+
+    # Header
+    print ""
+    print $"($bold)($yellow)═══════════════════════════════════════════════════════════════════════════════($reset)"
+    print $"($bold)($green) #($pokemon.pokedexId) ($pokemon.name)($reset) ($dimmed)— Moves \(($version_name)\)($reset)"
+    print $"($bold)($yellow)═══════════════════════════════════════════════════════════════════════════════($reset)"
+
+    # Format helper for damage class
+    let class_abbrev = {
+        "physical": "Phy",
+        "special": "Spc",
+        "status": "Sts"
+    }
+
+    for method in $methods_order {
+        let moves = ($all_moves | where method == $method)
+
+        if ($moves | length) > 0 {
+            let label = ($method_labels | get -o $method | default $method)
+            let count = ($moves | length)
+
+            print ""
+            print $" ($bold)($cyan)($label)($reset) ($dimmed)\(($count) moves\)($reset)"
+            print $" ($dimmed)───────────────────────────────────────────────────────────────────────────────($reset)"
+
+            if $method == "level-up" {
+                # Include level column
+                print $"  ($dimmed)Lv   Name                 Type        Power   Acc    PP  Class($reset)"
+
+                for move in $moves {
+                    let lvl = if ($move.level | is-empty) or ($move.level == null) { "  -" } else { ($move.level | into string | fill -a right -w 3) }
+                    let name = ($move.name | fill -a left -w 20)
+                    let type_color = ($type_colors | get -o $move.type | default $white)
+                    let type_str = ($move.type | fill -a left -w 10)
+                    let power = if ($move.power | is-empty) or ($move.power == null) { "    -" } else { ($move.power | into string | fill -a right -w 5) }
+                    let acc = if ($move.accuracy | is-empty) or ($move.accuracy == null) { "   -" } else { ($move.accuracy | into string | fill -a right -w 4) }
+                    let pp = ($move.pp | into string | fill -a right -w 4)
+                    let cls = ($class_abbrev | get -o $move.damage_class | default "???")
+
+                    print $"  ($lvl)  ($name) ($type_color)($type_str)($reset)  ($power)  ($acc)  ($pp)  ($cls)"
+                }
+            } else {
+                # No level column for TM/Egg/Tutor
+                print $"  ($dimmed)Name                 Type        Power   Acc    PP  Class($reset)"
+
+                for move in $moves {
+                    let name = ($move.name | fill -a left -w 20)
+                    let type_color = ($type_colors | get -o $move.type | default $white)
+                    let type_str = ($move.type | fill -a left -w 10)
+                    let power = if ($move.power | is-empty) or ($move.power == null) { "    -" } else { ($move.power | into string | fill -a right -w 5) }
+                    let acc = if ($move.accuracy | is-empty) or ($move.accuracy == null) { "   -" } else { ($move.accuracy | into string | fill -a right -w 4) }
+                    let pp = ($move.pp | into string | fill -a right -w 4)
+                    let cls = ($class_abbrev | get -o $move.damage_class | default "???")
+
+                    print $"  ($name) ($type_color)($type_str)($reset)  ($power)  ($acc)  ($pp)  ($cls)"
+                }
+            }
+        }
+    }
+
+    # Check for any other methods not in our standard list
+    let other_methods = ($all_moves | get method | uniq | where { |m| $m not-in $methods_order })
+    for method in $other_methods {
+        let moves = ($all_moves | where method == $method)
+        let count = ($moves | length)
+
+        print ""
+        print $" ($bold)($cyan)($method)($reset) ($dimmed)\(($count) moves\)($reset)"
+        print $" ($dimmed)───────────────────────────────────────────────────────────────────────────────($reset)"
+        print $"  ($dimmed)Name                 Type        Power   Acc    PP  Class($reset)"
+
+        for move in $moves {
+            let name = ($move.name | fill -a left -w 20)
+            let type_color = ($type_colors | get -o $move.type | default $white)
+            let type_str = ($move.type | fill -a left -w 10)
+            let power = if ($move.power | is-empty) or ($move.power == null) { "    -" } else { ($move.power | into string | fill -a right -w 5) }
+            let acc = if ($move.accuracy | is-empty) or ($move.accuracy == null) { "   -" } else { ($move.accuracy | into string | fill -a right -w 4) }
+            let pp = ($move.pp | into string | fill -a right -w 4)
+            let cls = ($class_abbrev | get -o $move.damage_class | default "???")
+
+            print $"  ($name) ($type_color)($type_str)($reset)  ($power)  ($acc)  ($pp)  ($cls)"
+        }
+    }
+
+    print ""
+    print $"($bold)($yellow)═══════════════════════════════════════════════════════════════════════════════($reset)"
+    print ""
+}
