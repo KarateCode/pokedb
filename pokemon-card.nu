@@ -204,7 +204,15 @@ def pokeCard [id: int, --no-images] {
     # Header
     print ""
     print $"($bold)($yellow)═══════════════════════════════════════════════════════════════($reset)"
-    print $"($bold)($green) #($pokemon.pokedexId) ($pokemon.name)($form_text)($reset)"
+    # Calculate padding to right-align the database ID within the title bar
+    let header_left = $" #($pokemon.pokedexId) ($pokemon.name)($form_text)"
+    let header_left_len = ($header_left | str length)
+    let id_str = $"id:($pokemon.id)"
+    let id_len = ($id_str | str length)
+    let card_width = 63  # Content width (separator is 67, minus 1 for leading space, minus 3 to keep id inside)
+    let padding_needed = $card_width - $header_left_len - $id_len
+    let padding = ("" | fill -c " " -w (if $padding_needed > 0 { $padding_needed } else { 1 }))
+    print $"($bold)($green) #($pokemon.pokedexId) ($pokemon.name)($form_text)($reset)($padding)($dimmed)id:($pokemon.id)($reset)"
     print $"($bold)($yellow)═══════════════════════════════════════════════════════════════($reset)"
 
     # Print side-by-side
@@ -379,7 +387,15 @@ def pokeMoves [id: int, --version (-v): int] {
     # Header
     print ""
     print $"($bold)($yellow)═══════════════════════════════════════════════════════════════════════════════($reset)"
-    print $"($bold)($green) #($pokemon.pokedexId) ($pokemon.name)($reset) ($dimmed)— Moves \(($version_name)\)($reset)"
+    # Calculate padding to right-align the database ID within the title bar
+    let header_left = $" #($pokemon.pokedexId) ($pokemon.name) — Moves \(($version_name)\)"
+    let header_left_len = ($header_left | str length)
+    let id_str = $"id:($pokemon.id)"
+    let id_len = ($id_str | str length)
+    let total_width = 75  # Content width (separator is 79, minus 1 for leading space, minus 3 to keep id inside)
+    let padding_needed = $total_width - $header_left_len - $id_len
+    let padding = ("" | fill -c " " -w (if $padding_needed > 0 { $padding_needed } else { 1 }))
+    print $"($bold)($green) #($pokemon.pokedexId) ($pokemon.name)($reset) ($dimmed)— Moves \(($version_name)\)($reset)($padding)($dimmed)id:($pokemon.id)($reset)"
     print $"($bold)($yellow)═══════════════════════════════════════════════════════════════════════════════($reset)"
 
     # Format helper for damage class
